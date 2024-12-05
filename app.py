@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, abort
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -11,7 +11,7 @@ app = Flask(__name__)
 font_path = "RunningYolo/fonts/AbingdonBold.otf"
 default_image_path = "RunningYolo/Images/back.jpg"  # Specify the default image path
 
-def process_image(image):
+def process_image(image, text1, text2):
     # Resize image
     scale = 60
     newWidth = int(image.shape[1] * scale / 100)
@@ -42,9 +42,6 @@ def process_image(image):
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
 
-            text1 = "Laurel"
-            text2 = "10"
-
             def add_text_with_pillow(image, text, position, font_path, font_size):
                 pil_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
                 draw = ImageDraw.Draw(pil_image)
@@ -68,6 +65,13 @@ def process_image(image):
 
 @app.route('/process/back', methods=['POST'])
 def process():
+    # Get text1 and text2 from the request
+    text1 = request.form.get('nom')
+    text2 = request.form.get('numero')
+
+    # Check if both text1 and text2 are provided
+    if not text1 or not text2:
+        return abort(404, description="Text1 and Text2 must be provided")
     if 'file' not in request.files:
         # Load and process the default image if no file is provided
         if os.path.exists(default_image_path):
@@ -87,7 +91,7 @@ def process():
         image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     # Process the image
-    final_image = process_image(image)
+    final_image = process_image(image, text1, text2)
 
     # Convert the final image to bytes
     _, buffer = cv2.imencode('.png', final_image)
