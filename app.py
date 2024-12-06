@@ -122,7 +122,7 @@ def process_image(image, text1, text2):
 
     return finalImage
 
-@app.route('/process/back', methods=['GET'])
+@app.route('/process/back', methods=['POST'])
 def process():
     # Get text1 and text2 from the request
     text1 = request.form.get('nom')
@@ -159,7 +159,7 @@ def process():
     return send_file(final_image_bytes, mimetype='image/png', as_attachment=True, download_name='processed_image.png')
 
 
-@app.route('/process/front', methods=['GET'])
+@app.route('/process/front', methods=['POST'])
 def process_and_send_image_front():
     text1 = request.form.get('numero')
     if not text1:
