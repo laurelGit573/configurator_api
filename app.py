@@ -37,7 +37,7 @@ def process_image_front(image, text1):
 
     # Get the second largest contour and calculate the centroid
     if len(sorted_contours) > 1:
-        second_largest_contour = sorted_contours[1]
+        second_largest_contour = sorted_contours[0]
         M = cv2.moments(second_largest_contour)
         if M["m00"] != 0:  # To avoid division by zero
             cX = int(M["m10"] / M["m00"])
@@ -66,7 +66,7 @@ def process_image_front(image, text1):
                 draw.text(centered_position, text, font=font, fill=(255, 255, 255))
                 return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            finalImage = add_text_with_pillow(finalImage, text, (cX, cY - 95), font_path, 45)
+            finalImage = add_text_with_pillow(finalImage, text, (cX, cY - 400), font_path, 300)
 
     return finalImage
 
@@ -95,7 +95,7 @@ def process_image(image, text1, text2):
     finalImage = np.copy(resizedImage)
 
     if len(sorted_contours) > 1:
-        second_largest_contour = sorted_contours[1]
+        second_largest_contour = sorted_contours[0]
         M = cv2.moments(second_largest_contour)
         if M["m00"] != 0:
             cX = int(M["m10"] / M["m00"])
@@ -117,8 +117,8 @@ def process_image(image, text1, text2):
                 draw.text(centered_position, text, font=font, fill=(255, 255, 255))
                 return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            finalImage = add_text_with_pillow(finalImage, text1, (cX, cY - 95), font_path, 25)
-            finalImage = add_text_with_pillow(finalImage, text2, (cX, cY - 20), font_path, 100)
+            finalImage = add_text_with_pillow(finalImage, text1, (cX, cY - 1550), font_path, 300)
+            finalImage = add_text_with_pillow(finalImage, text2, (cX, cY - 800), font_path, 1500)
 
     return finalImage
 
