@@ -118,8 +118,8 @@ def process_image(image, text1, text2):
                 draw.text(centered_position, text, font=font, fill=(255, 255, 255))
                 return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            finalImage = add_text_with_pillow(finalImage, text1, (cX, cY - 95), font_path, 25)
-            finalImage = add_text_with_pillow(finalImage, text2, (cX, cY - 20), font_path, 100)
+            finalImage = add_text_with_pillow(finalImage, text1, (cX, cY - 110), font_path, 25)
+            finalImage = add_text_with_pillow(finalImage, text2, (cX, cY - 60), font_path, 100)
 
     return finalImage
 
@@ -171,7 +171,7 @@ def process_image_twice(image, text1, text2):
                 draw.text(centered_position, text, font=font, fill=(255, 255, 255))
                 return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            finalImage = add_text_with_pillow(finalImage, text1, (cX - 78, cY - 90), font_path, 25)
+            finalImage = add_text_with_pillow(finalImage, text1, (cX - 78, cY - 80), font_path, 25)
             finalImage = add_text_with_pillow(finalImage, text2, (cX - 78, cY - 40), font_path, 100)
             finalImage = add_text_with_pillow(finalImage, text2, (cX + 85, cY - 50), font_path, 25)
 
