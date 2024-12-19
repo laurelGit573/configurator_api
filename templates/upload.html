@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Upload Images</title>
+</head>
+<body>
+    <h1>Upload Images</h1>
+    <form action="/create_site" method="post">
+        <label for="new_site">Create New Site:</label>
+        <input type="text" name="new_site" id="new_site" required />
+        <input type="submit" value="Create Site" />
+    </form>
+
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="site">Select Site for Images:</label>
+        <select name="site" id="site" required>
+            <option value="">Select a site</option>
+            <!-- Options will be dynamically populated -->
+        </select>
+        <br /><br />
+
+        <label for="back">Upload Back Image:</label>
+        <input type="file" name="back" id="back" accept="image/*" /><br /><br />
+
+        <label for="front">Upload Front Image:</label>
+        <input type="file" name="front" id="front" accept="image/*" /><br /><br />
+
+        <label for="twice">Upload Twice Image:</label>
+        <input type="file" name="twice" id="twice" accept="image/*" /><br /><br />
+
+        <input type="submit" value="Upload Images" />
+    </form>
+
+    <script>
+      // Fetch the existing sites when the page loads
+      fetch('/get_sites')
+          .then(response => response.json())
+          .then(sites => {
+              const siteSelect = document.getElementById('site');
+              sites.forEach(site => {
+                  // Create option for domicile
+                  const domicileOption = document.createElement('option');
+                  domicileOption.value = `${site.name}/domicile`;
+                  domicileOption.textContent = `${site.name}/domicile`;
+                  siteSelect.appendChild(domicileOption);
+
+                  // Create option for exterieur
+                  const exterieurOption = document.createElement('option');
+                  exterieurOption.value = `${site.name}/exterieur`;
+                  exterieurOption.textContent = `${site.name}/exterieur`;
+                  siteSelect.appendChild(exterieurOption);
+              });
+          });
+  </script>
+</body>
+</html>

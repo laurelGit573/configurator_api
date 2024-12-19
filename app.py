@@ -1,9 +1,10 @@
-from flask import Flask, request, send_file, abort
+from flask import Flask, request, jsonify, send_file, abort, render_template
 import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import os
 from io import BytesIO
+import uuid
 
 app = Flask(__name__)
 
@@ -13,7 +14,91 @@ default_image_path_back = "RunningYolo/Images/back.jpg"
 default_image_path_front = "RunningYolo/Images/front.jpg"  # Specify the default image path
 default_image_path_twice = "RunningYolo/Images/maillots-twice.jpg"
 
-def process_image_front(image, text1):
+base_image_dir = "RunningYolo/Sites"
+
+
+@app.route('/')
+def upload_form():
+    return render_template('upload.html')
+
+@app.route('/create_site', methods=['POST'])
+def create_site():
+    new_site = request.form.get('new_site')
+    site_path = os.path.join(base_image_dir, new_site)
+
+    try:
+        # Create the main site folder
+        os.makedirs(site_path, exist_ok=True)
+        
+        # Create the domicile and exterieur subfolders
+        os.makedirs(os.path.join(site_path, 'domicile'), exist_ok=True)
+        os.makedirs(os.path.join(site_path, 'exterieur'), exist_ok=True)
+        return "Site created successfully", 200
+    except Exception as e:
+        return f"Error creating site: {str(e)}", 500
+    
+@app.route('/get_sites', methods=['GET'])
+def get_sites():
+    # Get all directories (sites) in the base image directory
+    sites = []
+    for d in os.listdir(base_image_dir):
+        site_path = os.path.join(base_image_dir, d)
+        if os.path.isdir(site_path):
+            sites.append({
+                'name': d,
+                'domicile': os.path.join(d, 'domicile'),
+                'exterieur': os.path.join(d, 'exterieur')
+            })
+    return jsonify(sites)
+
+
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    files = request.files
+    uploaded_files = []
+    selected_folder = request.form.get('site') # Get the selected site from the form
+    
+    # Create the site folder path
+    site_name, folder_type = selected_folder.split('/')
+    site_folder = os.path.join(base_image_dir, site_name, folder_type)
+
+    # Save uploaded files with unique names to the temporary directory
+    if 'back' in files:
+        file = files['back']
+        if file.filename != '':
+            back_filename = f"back.jpg"  # Unique filename
+            back_path = os.path.join(site_folder, back_filename)
+            file.save(back_path)
+            uploaded_files.append(back_path)
+
+    if 'front' in files:
+        file = files['front']
+        if file.filename != '':
+            front_filename = f"front.jpg"  # Unique filename
+            front_path = os.path.join(site_folder, front_filename)
+            file.save(front_path)
+            uploaded_files.append(front_path)
+
+    if 'twice' in files:
+        file = files['twice']
+        if file.filename != '':
+            twice_filename = f"twice.jpg"  # Unique filename
+            twice_path = os.path.join(site_folder, twice_filename)
+            file.save(twice_path)
+            uploaded_files.append(twice_path)
+
+    # Update default image paths to the newly uploaded files
+    global default_image_path_back, default_image_path_front, default_image_path_twice
+    if len(uploaded_files) > 0:
+        default_image_path_back = uploaded_files[0] if 'back' in files else default_image_path_back
+        default_image_path_front = uploaded_files[1] if 'front' in files else default_image_path_front
+        default_image_path_twice = uploaded_files[2] if 'twice' in files else default_image_path_twice
+
+    return "Files uploaded successfully", 200
+
+
+def process_image_front(image, text1, side):
 
     # Resize the image
     scale = 60  # scale in percentage
@@ -35,6 +120,12 @@ def process_image_front(image, text1):
 
     # Make a copy of the resized image
     finalImage = np.copy(resizedImage)
+
+    posiY1 = 70
+    ccolor = (255, 255, 255)
+    if (side == "exterieur"):
+        ccolor = (64, 64, 64)
+        posiY1 = posiY1 - 150
 
     # Get the second largest contour and calculate the centroid
     if len(sorted_contours) > 1:
@@ -64,14 +155,14 @@ def process_image_front(image, text1):
                 centered_position = (position[0] - text_width // 2, position[1] - text_height // 2)
 
                 # Add text to the image
-                draw.text(centered_position, text, font=font, fill=(255, 255, 255))
+                draw.text(centered_position, text, font=font, fill=ccolor)
                 return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            finalImage = add_text_with_pillow(finalImage, text, (cX, cY - 95), font_path, 45)
+            finalImage = add_text_with_pillow(finalImage, text, (cX, cY - posiY1), font_path, 45)
 
     return finalImage
 
-def process_image(image, text1, text2):
+def process_image(image, text1, text2, side):
     # Resize image
     scale = 60
     newWidth = int(image.shape[1] * scale / 100)
@@ -94,6 +185,13 @@ def process_image(image, text1, text2):
 
     # Make a copy for final image
     finalImage = np.copy(resizedImage)
+    posiY1 = 110
+    posiY2 = 60
+    ccolor = (255, 255, 255)
+    if (side == "exterieur"):
+        ccolor = (64, 64, 64)
+        posiY1 = 110 + 100
+        posiY2 = 60 + 100
 
     if len(sorted_contours) > 1:
         second_largest_contour = sorted_contours[1]
@@ -115,11 +213,11 @@ def process_image(image, text1, text2):
                     text_width, text_height = draw.textsize(text, font=font)
 
                 centered_position = (position[0] - text_width // 2, position[1] - text_height // 2)
-                draw.text(centered_position, text, font=font, fill=(255, 255, 255))
+                draw.text(centered_position, text, font=font, fill=ccolor)
                 return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            finalImage = add_text_with_pillow(finalImage, text1, (cX, cY - 110), font_path, 25)
-            finalImage = add_text_with_pillow(finalImage, text2, (cX, cY - 60), font_path, 100)
+            finalImage = add_text_with_pillow(finalImage, text1, (cX, cY - posiY1), font_path, 25)
+            finalImage = add_text_with_pillow(finalImage, text2, (cX, cY - posiY2), font_path, 100)
 
     return finalImage
 
@@ -180,32 +278,51 @@ def process_image_twice(image, text1, text2):
 @app.route('/process/back', methods=['POST'])
 def process():
     # Get text1 and text2 from the request
+    site_name = request.form.get('site')  # Expecting format like "cameroun/domicile"
     text1 = request.form.get('nom')
     text2 = request.form.get('numero')
+    side = site_name.split("/")[1]
 
     # Check if both text1 and text2 are provided
-    if not text1 or not text2:
-        return abort(404, description="Text1 and Text2 must be provided")
-    if 'file' not in request.files:
-        # Load and process the default image if no file is provided
-        if os.path.exists(default_image_path_back):
-            image = cv2.imread(default_image_path_back)
-        else:
-            return "Default image not found", 404
-    else:
-        file = request.files['file']
-        if file.filename == '':
-            return "No selected file", 400
+    if not text1 or not text2 or not site_name:
+        return abort(404, description="nom numero et site requis")
+    
+    # Construct the path for the selected site folder
+    site_folder = os.path.join(base_image_dir, site_name)
+    # Check if the folder exists
+    if os.path.exists(site_folder):
+        # Look for files starting with 'back'
+        back_files = [f for f in os.listdir(site_folder) if f.startswith('back')]
+        if not back_files:
+            return "No file starting with 'back' found in the specified folder", 404
 
-        # Read the image file
-        in_memory_file = BytesIO()
-        file.save(in_memory_file)
-        in_memory_file.seek(0)
-        image = Image.open(in_memory_file)
-        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        # Use the first file found starting with 'back'
+        back_image_path = os.path.join(site_folder, back_files[0])
+        print("back_image_path", back_image_path)
+        image = cv2.imread(back_image_path)
+    else:
+        return "Site folder not found", 404
+
+    # if 'file' not in request.files:
+    #     # Load and process the default image if no file is provided
+    #     if os.path.exists(default_image_path_back):
+    #         image = cv2.imread(default_image_path_back)
+    #     else:
+    #         return "Default image not found", 404
+    # else:
+    #     file = request.files['file']
+    #     if file.filename == '':
+    #         return "No selected file", 400
+
+    #     # Read the image file
+    #     in_memory_file = BytesIO()
+    #     file.save(in_memory_file)
+    #     in_memory_file.seek(0)
+    #     image = Image.open(in_memory_file)
+    #     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     # Process the image
-    final_image = process_image(image, text1, text2)
+    final_image = process_image(image, text1, text2, side)
 
     # Convert the final image to bytes
     _, buffer = cv2.imencode('.png', final_image)
@@ -216,27 +333,47 @@ def process():
 
 @app.route('/process/front', methods=['POST'])
 def process_and_send_image_front():
+    site_name = request.form.get('site')  # Expecting format like "cameroun/domicile"
     text1 = request.form.get('numero')
-    if not text1:
-        return abort(404, description="Text1 must be provided")
-    if 'file' not in request.files:
-        # Load and process the default image if no file is provided
-        if os.path.exists(default_image_path_front):
-            image = cv2.imread(default_image_path_front)
-        else:
-            return "Default image not found", 404
+    side = site_name.split("/")[1]
+
+    if not text1 or not site_name:
+        return abort(404, description="numero et site requis")
+    
+    # Construct the path for the selected site folder
+    site_folder = os.path.join(base_image_dir, site_name)
+    # Check if the folder exists
+    if os.path.exists(site_folder):
+        # Look for files starting with 'back'
+        front_files = [f for f in os.listdir(site_folder) if f.startswith('front')]
+        if not front_files:
+            return "No file starting with 'back' found in the specified folder", 404
+
+        # Use the first file found starting with 'back'
+        front_image_path = os.path.join(site_folder, front_files[0])
+        image = cv2.imread(front_image_path)
     else:
-        file = request.files['file']
-        if file.filename == '':
-            return "No selected file", 400
-        # Read the image file
-        in_memory_file = BytesIO()
-        file.save(in_memory_file)
-        in_memory_file.seek(0)
-        image = Image.open(in_memory_file)
-        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        return "Site folder not found", 404
+    
+
+    # if 'file' not in request.files:
+    #     # Load and process the default image if no file is provided
+    #     if os.path.exists(default_image_path_front):
+    #         image = cv2.imread(default_image_path_front)
+    #     else:
+    #         return "Default image not found", 404
+    # else:
+    #     file = request.files['file']
+    #     if file.filename == '':
+    #         return "No selected file", 400
+    #     # Read the image file
+    #     in_memory_file = BytesIO()
+    #     file.save(in_memory_file)
+    #     in_memory_file.seek(0)
+    #     image = Image.open(in_memory_file)
+    #     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         
-    processed_image_path = process_image_front(image, text1)
+    processed_image_path = process_image_front(image, text1, side)
     # Convert the final image to bytes
     _, buffer = cv2.imencode('.png', processed_image_path)
     final_image_bytes = BytesIO(buffer)
@@ -245,29 +382,47 @@ def process_and_send_image_front():
 @app.route('/process/twice', methods=['POST'])
 def process_twice():
     # Get text1 and text2 from the request
+    site_name = request.form.get('site')  # Expecting format like "cameroun/domicile"
     text1 = request.form.get('nom')
     text2 = request.form.get('numero')
+    side = site_name.split("/")[1]
 
     # Check if both text1 and text2 are provided
-    if not text1 or not text2:
-        return abort(404, description="Text1 and Text2 must be provided")
-    if 'file' not in request.files:
-        # Load and process the default image if no file is provided
-        if os.path.exists(default_image_path_twice):
-            image = cv2.imread(default_image_path_twice)
-        else:
-            return "Default image not found", 404
-    else:
-        file = request.files['file']
-        if file.filename == '':
-            return "No selected file", 400
+    if not text1 or not text2 or not site_name:
+        return abort(404, description="nom numero et site requis")
+    
+    # Construct the path for the selected site folder
+    site_folder = os.path.join(base_image_dir, site_name)
+    # Check if the folder exists
+    if os.path.exists(site_folder):
+        # Look for files starting with 'back'
+        twice_files = [f for f in os.listdir(site_folder) if f.startswith('twice')]
+        if not twice_files:
+            return "No file starting with 'back' found in the specified folder", 404
 
-        # Read the image file
-        in_memory_file = BytesIO()
-        file.save(in_memory_file)
-        in_memory_file.seek(0)
-        image = Image.open(in_memory_file)
-        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        # Use the first file found starting with 'back'
+        twice_image_path = os.path.join(site_folder, twice_files[0])
+        image = cv2.imread(twice_image_path)
+    else:
+        return "Site folder not found", 404
+
+    # if 'file' not in request.files:
+    #     # Load and process the default image if no file is provided
+    #     if os.path.exists(default_image_path_twice):
+    #         image = cv2.imread(default_image_path_twice)
+    #     else:
+    #         return "Default image not found", 404
+    # else:
+    #     file = request.files['file']
+    #     if file.filename == '':
+    #         return "No selected file", 400
+
+    #     # Read the image file
+    #     in_memory_file = BytesIO()
+    #     file.save(in_memory_file)
+    #     in_memory_file.seek(0)
+    #     image = Image.open(in_memory_file)
+    #     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     # Process the image
     final_image = process_image_twice(image, text1, text2)
