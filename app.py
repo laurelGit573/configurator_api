@@ -190,8 +190,8 @@ def process_image(image, text1, text2, side):
     ccolor = (255, 255, 255)
     if (side == "exterieur"):
         ccolor = (64, 64, 64)
-        posiY1 = 110 + 100
-        posiY2 = 60 + 100
+        posiY1 = posiY1 + 100
+        posiY2 = posiY2 + 100
 
     if len(sorted_contours) > 1:
         second_largest_contour = sorted_contours[1]
@@ -222,7 +222,7 @@ def process_image(image, text1, text2, side):
     return finalImage
 
 
-def process_image_twice(image, text1, text2):
+def process_image_twice(image, text1, text2, side):
     # Resize image
     scale = 60
     newWidth = int(image.shape[1] * scale / 100)
@@ -245,6 +245,23 @@ def process_image_twice(image, text1, text2):
 
     # Make a copy for final image
     finalImage = np.copy(resizedImage)
+    posiY1 = 80
+    posiY2 = 40
+    posiY3 = 50
+    posiX1 = 78
+    posiX2 = 78
+    posiX3 = 85
+    ccolor = (255, 255, 255)
+
+    if (side == "exterieur"):
+        ccolor = (64, 64, 64)
+        posiX1 = 0
+        posiX2 = 0
+        posiX3 = 85 + 85
+        posiY1 = posiY1 + 70
+        posiY2 = posiY2 + 70
+        posiY3 = posiY3 + 50
+
 
     if len(sorted_contours) > 1:
         second_largest_contour = sorted_contours[1]
@@ -266,12 +283,12 @@ def process_image_twice(image, text1, text2):
                     text_width, text_height = draw.textsize(text, font=font)
 
                 centered_position = (position[0] - text_width // 2, position[1] - text_height // 2)
-                draw.text(centered_position, text, font=font, fill=(255, 255, 255))
+                draw.text(centered_position, text, font=font, fill=ccolor)
                 return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-            finalImage = add_text_with_pillow(finalImage, text1, (cX - 78, cY - 80), font_path, 25)
-            finalImage = add_text_with_pillow(finalImage, text2, (cX - 78, cY - 40), font_path, 100)
-            finalImage = add_text_with_pillow(finalImage, text2, (cX + 85, cY - 50), font_path, 25)
+            finalImage = add_text_with_pillow(finalImage, text1, (cX - posiX1, cY - posiY1), font_path, 25)
+            finalImage = add_text_with_pillow(finalImage, text2, (cX - posiX2, cY - posiY2), font_path, 100)
+            finalImage = add_text_with_pillow(finalImage, text2, (cX + posiX3, cY - posiY3), font_path, 25)
 
     return finalImage
 
@@ -425,7 +442,7 @@ def process_twice():
     #     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
 
     # Process the image
-    final_image = process_image_twice(image, text1, text2)
+    final_image = process_image_twice(image, text1, text2, side)
 
     # Convert the final image to bytes
     _, buffer = cv2.imencode('.png', final_image)
